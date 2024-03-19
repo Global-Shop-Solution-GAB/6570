@@ -1,0 +1,84 @@
+Program.Sub.Preflight.Start
+V.Global.bSql.Declare(Boolean,False)
+Program.Sub.Preflight.End
+
+Program.Sub.Main.Start
+F.Intrinsic.Control.SetErrorHandler("Main_Err")
+F.Intrinsic.Control.ClearErrors
+
+V.Local.sError.Declare(String,"")
+V.Local.sTransID.Declare(String,"")
+V.Local.sLot.Declare(String,"")
+V.Local.sBin.Declare(String,"")
+V.Local.sHeat.Declare(String,"")
+V.Local.sSerial.Declare(String,"")
+V.Local.sPart.Declare(String,"")
+V.Local.sLoc.Declare(String,"")
+V.Local.sSql.Declare(String,"")
+
+F.Intrinsic.Control.SelectCase(V.Caller.Hook)
+	F.Intrinsic.Control.Case(31953)
+		F.ODBC.Connection!Conx.Opencompanyconnection
+		V.Global.bSql.Set(True)
+		V.Local.sTransID.Set(V.Passed.LINE-ID)
+
+		F.Intrinsic.String.Build("Select Field_1, Field_2, Field_4, Field_5, Field_6, Field_7 from WIRELESS_LINE WHERE TRANS_ID = '{0}'", V.Local.sTransID, V.Local.sSQL)
+		F.ODBC.Connection!Conx.OpenRecordsetRO("rstWIR",V.Local.sSQL)
+		
+		V.Local.sPart.Set(V.ODBC.Conx!rstWIR.FieldValTrim!Field_1)
+		V.Local.sLoc.Set(V.ODBC.Conx!rstWIR.FieldValTrim!Field_2)
+		V.Local.sLot.Set(V.ODBC.Conx!rstWIR.FieldValTrim!Field_5)
+		V.Local.sBin.Set(V.ODBC.Conx!rstWIR.FieldValTrim!Field_4)
+		V.Local.sHeat.Set(V.ODBC.Conx!rstWIR.FieldValTrim!Field_6)
+		V.Local.sSerial.Set(V.ODBC.Conx!rstWIR.FieldValTrim!Field_7)
+		
+		F.ODBC.Conx!rstWIR.Close
+		
+		F.Intrinsic.String.Build("Select Top 1 Part, Location, Lot, Bin, Heat, Serial, Sequence, Reference From Inv_Phys_Var Where Part = '{0}' and Location = '{1}' and Lot = '{2}' and Bin = '{3}' and Heat = '{4}' and Serial = '{5}' Order By Sequence Desc",V.Local.sPart,V.Local.sLoc,V.Local.sLot,V.Local.sBin,V.Local.sHeat,V.Local.sSerial,V.Local.sSql)
+		F.Data.DataTable.CreateFromSQL("Inv","Conx",V.Local.sSql,True)
+		
+		F.Intrinsic.Control.If(V.DataTable.Inv.RowCount--,<>,-1)
+			F.Data.DataTable.SetValue("Inv",-1,"Reference",V.Local.sTransID)
+			F.Data.DataTable.SaveToDB("Inv","Conx","Inv_Phys_Var","Part*!*Location*!*Lot*!*Bin*!*Heat*!*Serial*!*Sequence",3)
+		F.Intrinsic.Control.EndIf
+		
+		F.ODBC.Connection!Conx.Close
+		
+		V.Global.bSql.Set(False)
+		
+		F.Intrinsic.Control.CallSub(Exit)
+		
+	F.Intrinsic.Control.CaseElse
+		F.Intrinsic.Control.CallSub(Exit)
+	
+F.Intrinsic.Control.EndSelect
+
+F.Intrinsic.Control.ExitSub
+
+F.Intrinsic.Control.Label("Main_Err")
+F.Intrinsic.Control.If(V.Ambient.ErrorNumber,<>,0)
+	F.Intrinsic.String.Build("Project: GCG_6570_Mobile_Phys_Inv.g2u {0}{0}Subroutine: {1}{0}Error Occurred {2} with description {3}",V.Ambient.NewLine,V.Ambient.CurrentSubroutine,V.Ambient.ErrorNumber,V.Ambient.ErrorDescription,V.Local.sError)
+	F.Intrinsic.UI.Msgbox(V.Local.sError)
+	F.Intrinsic.Control.CallSub(Exit)
+Function.Intrinsic.Control.EndIf
+Program.Sub.Main.End
+
+Program.Sub.Exit.Start
+F.Intrinsic.Control.SetErrorHandler("Exit_Err")
+F.Intrinsic.Control.ClearErrors
+
+V.Local.sError.Declare(String,"")
+
+F.Intrinsic.Control.If(V.Global.bSql)
+	F.ODBC.Connection!Conx.Close
+F.Intrinsic.Control.EndIf
+
+F.Intrinsic.Control.End
+
+F.Intrinsic.Control.ExitSub
+
+F.Intrinsic.Control.Label("Exit_Err")
+F.Intrinsic.Control.If(V.Ambient.ErrorNumber,<>,0)
+	F.Intrinsic.Control.End
+Function.Intrinsic.Control.EndIf
+Program.Sub.Exit.End
